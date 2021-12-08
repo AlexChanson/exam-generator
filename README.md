@@ -6,3 +6,6 @@ Input: one page pdf in data directory
 
 Output: a pdf file with a page ofr each student in your class
 
+## Example
+
+![](./doc/exemple.png)

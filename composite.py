@@ -29,7 +29,7 @@ def get_a4_with_string(x, y, code):
     return new.getPage(0)
 
 
-def make_for_student(all_questions, pools, questions_per_pool, pdf_reader, out, fuzz):
+def make_for_student(all_questions, pools, questions_per_pool, pdf_reader, out, fuzz, per_page, y_offset):
     # Separate pools
     if pools is None or len(pools) == 0:
         question_pools = all_questions
@@ -48,41 +48,50 @@ def make_for_student(all_questions, pools, questions_per_pool, pdf_reader, out, 
         student_questions.extend(get_questions(pool, questions_per_pool[i]))
 
     page0 = deepcopy(pdf_reader.getPage(0))
+    q_pages = 0
     out.addPage(page0)
 
     q_page = get_blank_a4()
     cnt = 0
     for i, q in enumerate(student_questions):
-        if cnt == 4:
+        if cnt == per_page:
             cnt = 0
             out.addPage(q_page)
             q_page = get_blank_a4()
-        q_page.mergeTranslatedPage(pdf_reader.getPage(q+1), tx=0, ty=-cnt*130)
+            q_pages += 1
+        q_page.mergeTranslatedPage(pdf_reader.getPage(q+1), tx=0, ty=-cnt*y_offset)
         f = ""
         if fuzz:
             f = str(choice("ABCDEF"))
-        q_page.mergeTranslatedPage(get_a4_with_string(182, 708, f+str(q+1)), tx=0, ty=-cnt*130)
+        # x offset -> 182
+        q_page.mergeTranslatedPage(get_a4_with_string(172, 708, f+str(q+1)), tx=0, ty=-cnt*y_offset)
         cnt += 1
     out.addPage(q_page)
+    q_pages += 1
+
+    # This is for double-sided printing
+    # We need an even number of pages per student (odd number of question pages + the front page)
+    if q_pages % 2 == 0:
+        out.addPage(get_blank_a4())
 
 
-def make_for_class(input_pdf, output, n_students, questions_pools, questions_per_pool, fuzz=False):
+def make_for_class(input_pdf, output, n_students, questions_pools, questions_per_pool, fuzz=False, per_page=4, y_offset=130):
     pdf_reader = PdfFileReader(input_pdf)
     pdf_writer = PdfFileWriter()
 
     for i in range(n_students):
-        make_for_student(range(pdf_reader.getNumPages()-1), questions_pools, questions_per_pool, pdf_reader, pdf_writer, fuzz)
+        make_for_student(range(pdf_reader.getNumPages()-1), questions_pools, questions_per_pool, pdf_reader, pdf_writer, fuzz, per_page, y_offset)
 
     with open(output, 'wb') as out:
         pdf_writer.write(out)
 
 
 if __name__ == '__main__':
-    students = 1
-    question_pools = [6, 12]
-    questions_per_pool = [1, 2, 1]
+    students = 80
+    question_pools = [6]
+    questions_per_pool = [4, 4]
     fuzz = True
 
-    make_for_class("/home/alex/PycharmProjects/exam-generator/data/QCM_BD_L2__1Q_per_page_(1).pdf",
-                   "/home/alex/PycharmProjects/exam-generator/data/out.pdf",
-                   students, question_pools, questions_per_pool, fuzz)
+    make_for_class("/home/alex/PycharmProjects/exam-generator/data/QCM_Archi_L2.pdf",
+                   "/home/alex/PycharmProjects/exam-generator/data/archi_l2_80.pdf",
+                   students, question_pools, questions_per_pool, fuzz, per_page=2, y_offset=300)

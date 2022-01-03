@@ -87,11 +87,11 @@ def make_for_class(input_pdf, output, n_students, questions_pools, questions_per
 
 
 if __name__ == '__main__':
-    students = 80
-    question_pools = [6]
-    questions_per_pool = [4, 4]
+    students = 10
+    question_pools = [4, 12, 24]
+    questions_per_pool = [2, 4, 5, 5]
     fuzz = True
 
-    make_for_class("/home/alex/PycharmProjects/exam-generator/data/QCM_Archi_L2.pdf",
-                   "/home/alex/PycharmProjects/exam-generator/data/archi_l2_80.pdf",
-                   students, question_pools, questions_per_pool, fuzz, per_page=2, y_offset=300)
+    make_for_class("/home/alex/PycharmProjects/exam-generator/data/QCM_BD_L2__1Q_per_page_.pdf",
+                   "/home/alex/PycharmProjects/exam-generator/data/bdd_l2_80.pdf",
+                   students, question_pools, questions_per_pool, fuzz, y_offset=120, per_page=5)

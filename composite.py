@@ -1,9 +1,10 @@
 from PyPDF4 import PdfFileWriter, PdfFileReader
 import io
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter, A4
-from random import randint, choice
+from reportlab.lib.pagesizes import A4
+from random import choice
 from copy import deepcopy
+from answers import get_datamatrix, get_a4_with_image, read_answers
 
 
 def get_questions(pool, k):
@@ -29,7 +30,7 @@ def get_a4_with_string(x, y, code):
     return new.getPage(0)
 
 
-def make_for_student(all_questions, pools, questions_per_pool, pdf_reader, out, fuzz, per_page, y_offset):
+def make_for_student(all_questions, pools, questions_per_pool, questions_pdf, out, fuzz, per_page, y_offset, answers):
     # Separate pools
     if pools is None or len(pools) == 0:
         question_pools = all_questions
@@ -47,8 +48,11 @@ def make_for_student(all_questions, pools, questions_per_pool, pdf_reader, out, 
     for i, pool in enumerate(question_pools):
         student_questions.extend(get_questions(pool, questions_per_pool[i]))
 
-    page0 = deepcopy(pdf_reader.getPage(0))
+    page0 = deepcopy(questions_pdf.getPage(0))
     q_pages = 0
+    # add marker to first page
+    if answers is not None:
+        page0.mergeTranslatedPage(get_a4_with_image(255, 50, get_datamatrix({"flag": "42"})), tx=0, ty=0)
     out.addPage(page0)
 
     q_page = get_blank_a4()
@@ -59,13 +63,18 @@ def make_for_student(all_questions, pools, questions_per_pool, pdf_reader, out, 
             out.addPage(q_page)
             q_page = get_blank_a4()
             q_pages += 1
-        q_page.mergeTranslatedPage(pdf_reader.getPage(q+1), tx=0, ty=-cnt*y_offset)
+        # add question
+        q_page.mergeTranslatedPage(questions_pdf.getPage(q+1), tx=0, ty=-cnt*y_offset)
         f = ""
         if fuzz:
             f = str(choice("ABCDEF"))
+        # add question number
         # x offset -> 182
         q_page.mergeTranslatedPage(get_a4_with_string(172, 708, f+str(q+1)), tx=0, ty=-cnt*y_offset)
         cnt += 1
+        # add answer
+        if answers is not None:
+            q_page.mergeTranslatedPage(get_a4_with_image(50, 840-y_offset, get_datamatrix(answers[q])), tx=0, ty=-(cnt-1)*y_offset)
     out.addPage(q_page)
     q_pages += 1
 
@@ -75,23 +84,28 @@ def make_for_student(all_questions, pools, questions_per_pool, pdf_reader, out, 
         out.addPage(get_blank_a4())
 
 
-def make_for_class(input_pdf, output, n_students, questions_pools, questions_per_pool, fuzz=False, per_page=4, y_offset=130):
-    pdf_reader = PdfFileReader(input_pdf)
+def make_for_class(input_pdf, output, n_students, questions_pools, questions_per_pool, fuzz=False, per_page=4, y_offset=130, encode_answers=None):
+    if encode_answers is not None:
+        answers = read_answers(encode_answers)
+    else:
+        answers = None
+
+    all_questions = PdfFileReader(input_pdf)
     pdf_writer = PdfFileWriter()
 
     for i in range(n_students):
-        make_for_student(range(pdf_reader.getNumPages()-1), questions_pools, questions_per_pool, pdf_reader, pdf_writer, fuzz, per_page, y_offset)
+        make_for_student(range(all_questions.getNumPages()-1), questions_pools, questions_per_pool, all_questions, pdf_writer, fuzz, per_page, y_offset, answers)
 
     with open(output, 'wb') as out:
         pdf_writer.write(out)
 
 
 if __name__ == '__main__':
-    students = 10
-    question_pools = [4, 12, 24]
-    questions_per_pool = [2, 4, 5, 5]
+    students = 1
+    question_pools = [6]
+    questions_per_pool = [5,5]
     fuzz = True
 
-    make_for_class("/home/alex/PycharmProjects/exam-generator/data/QCM_BD_L2__1Q_per_page_.pdf",
-                   "/home/alex/PycharmProjects/exam-generator/data/bdd_l2_80.pdf",
-                   students, question_pools, questions_per_pool, fuzz, y_offset=120, per_page=5)
+    make_for_class("./data/QCM_Archi_L2.pdf",
+                   "./data/test.pdf",
+                   students, question_pools, questions_per_pool, fuzz, y_offset=200, per_page=3, encode_answers="./data/ans.csv")
